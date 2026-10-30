@@ -1,0 +1,55 @@
+
+name: build-apk
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Prepare web folder
+        run: |
+          mkdir -p www
+          cp index.html adhan.mp3 www/
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Add Android
+        run: npx cap add android
+
+      - name: Prepare Android
+        run: |
+          mkdir -p android/app/src/main/res/raw
+          cp adhan.mp3 android/app/src/main/res/raw/adhan.mp3
+          sed -i 's#</manifest>#<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/><uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/></manifest>#' android/app/src/main/AndroidManifest.xml
+          npx cap sync android
+
+      - name: Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
